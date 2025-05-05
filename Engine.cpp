@@ -1,11 +1,12 @@
 #include "Engine.h"
+#include "Particle.h"
 #include <cstdlib>
 #include <ctime> // for random number
 
 Engine::Engine()
 {
-    VideoMode desktop = VideoMode::getDesktopMode();
-    m_Window.create(desktop, "Particles By Chris and Ali");
+    m_Window.create(VideoMode(VideoMode::getDesktopMode().width / 2, VideoMode::getDesktopMode().height / 2), "Particles By Chris and Ali");
+    //m_Window.create(desktop, "Particles By Chris and Ali");
 }
 
 void Engine::run()

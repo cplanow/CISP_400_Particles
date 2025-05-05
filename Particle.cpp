@@ -60,7 +60,7 @@ void Particle::unitTests()
         cout << "Failed." << endl;
     }
 
-    
+
     cout << "Testing Particles..." << endl;
     cout << "Testing Particle mapping to Cartesian origin..." << endl;
     Vector2f zero = {0,0};
@@ -145,116 +145,94 @@ void Particle::unitTests()
 
     cout << "Score: " << score << " / 7" << endl;
 }
+
 Particle::Particle(RenderTarget& target, int numPoints, Vector2i mouseClickPosition) : m_A(2, numPoints)
 {
     m_ttl = TTL;
     m_numPoints = numPoints;
-    // 2. Angular velocity: [0, PI]
-    float randomFraction = static_cast<float>(rand()) / RAND_MAX;
-    m_radiansPerSec = randomFraction * PI;
-
-    // setting up the Cartesian view
+    m_radiansPerSec = ((float)rand() / (RAND_MAX)) * M_PI;
     m_cartesianPlane.setCenter(0, 0);
     m_cartesianPlane.setSize(target.getSize().x, (-1.0f) * target.getSize().y);
 
     // converting pixel to Cartesian and store particle center
     m_centerCoordinate = target.mapPixelToCoords(mouseClickPosition, m_cartesianPlane);
+    m_vx = (rand() % 401) + 100;
+    m_vy = (rand() % 401) + 100;
+    if (rand() % 2 != 0) { m_vx *= -1.0; }
+    m_color1 = Color(255, 255, 255);
+    m_color2 = Color(rand() % 256, rand() % 256, rand() % 256);
 
-    // random pixel velocities 100–500
-    m_vx = 100 + rand() % 401; // horizontal
-    if (rand() % 2 != 0) { m_vx *= -1; } // // negative random numbers
-    m_vy = 100 + rand() % 401; // vertical
-
-    m_color1 = Color :: White ;
-    //m_color = Color (rand() % 255 , rand() % 255, rand() % 255);
-    m_color2 = Color(rand() % 255, rand() % 255, rand() % 255);
-
-    // generating shape
-    float theta = static_cast <float> (rand () % RAND_MAX * (PI / 2)); // angle between [0: PI/ 2]
-    float dTheta = 2 * PI / numPoints;
+    float theta = ((float)rand() / (RAND_MAX)) * (M_PI / 2.0f);
+    float dTheta = 2 * PI / (numPoints - 1);
 
     for (int j = 0; j < numPoints; j++)
     {
-        int r = 20 + rand() % (80 - 20 + 1);
+        float r = (rand() % 61) + 20;
         float dx = r * cos(theta);
         float dy = r * sin(theta);
 
-        m_A(0, j) = dx;
-        m_A(1, j) = dy;
-
-        // move it to the next location
+        m_A(0, j) = m_centerCoordinate.x + dx;
+        m_A(1, j) = m_centerCoordinate.y + dy;
         theta += dTheta;
     }
 }
+
 void Particle::draw(RenderTarget& target, RenderStates states) const
 {
     VertexArray lines(TriangleFan, m_numPoints + 1);
-    
-    // Center vertex
-    Vector2f worldPos = m_centerCoordinate;
-    Vector2i pixelPos = target.mapCoordsToPixel(worldPos, m_cartesianPlane);
-    lines[0].position = Vector2f(pixelPos.x, pixelPos.y);
+    Vector2f center(target.mapCoordsToPixel(m_centerCoordinate, m_cartesianPlane));
+
+    lines[0].position = center;
     lines[0].color = m_color1;
 
-    // Outer vertices
     for (int j = 1; j <= m_numPoints; j++)
     {
-        // Get the vertex position in world coordinates
-        Vector2f vertexWorldPos(m_A(0, j-1), m_A(1, j-1));
-        vertexWorldPos += m_centerCoordinate; // Add center offset
-        
-        // Convert to pixel coordinates
-        Vector2i vertexPixelPos = target.mapCoordsToPixel(vertexWorldPos, m_cartesianPlane);
-        lines[j].position = Vector2f(vertexPixelPos.x, vertexPixelPos.y);
+        lines[j].position = (Vector2f)target.mapCoordsToPixel(Vector2f(m_A(0, j - 1), m_A(1, j - 1)), m_cartesianPlane);
         lines[j].color = m_color2;
     }
 
-    target.draw(lines, states);
+    target.draw(lines);
 }
 
-void Particle :: update (float dt)
+void Particle::update(float dt)
 {
-    // Subtract dt from m_ttl
     m_ttl -= dt;
-    
-    // Rotate particle by dt * m_radiansPerSec
     rotate(dt * m_radiansPerSec);
-    
-    // Scale particle using SCALE constant
     scale(SCALE);
-    
-    // Calculate translation distances
+
     float dx = m_vx * dt;
-    float dy;
-    
-    // Apply gravity effect to vertical velocity
     m_vy -= G * dt;
-    dy = m_vy * dt;
-    
-    // Translate particle by calculated distances
+    float dy = m_vy * dt;
+
     translate(dx, dy);
 }
+
 void Particle::translate(double xShift, double yShift)
 {
-    // Create translation matrix with the shifts and same number of columns as m_A
     TranslationMatrix T(xShift, yShift, m_A.getCols());
-    
-    // Add translation matrix to m_A
     m_A = T + m_A;
-    
-    // Update the particle's center coordinate
     m_centerCoordinate.x += xShift;
     m_centerCoordinate.y += yShift;
 }
-void Particle :: rotate(double theta)
+
+void Particle::rotate(double theta)
 {
-   // Create rotation matrix and multiply with m_A
+    Vector2f temp = m_centerCoordinate;
+    translate(-m_centerCoordinate.x, -m_centerCoordinate.y);
+
     RotationMatrix R(theta);
     m_A = R * m_A;
+
+    translate(temp.x, temp.y);
 }
-void Particle :: scale(double c)
+
+void Particle::scale(double c)
 {
-    // Create rotation matrix and multiply with m_A
+    Vector2f temp = m_centerCoordinate;
+    translate(-m_centerCoordinate.x, -m_centerCoordinate.y);
+
     ScalingMatrix S(c);
     m_A = S * m_A;
+
+    translate(temp.x, temp.y);
 }

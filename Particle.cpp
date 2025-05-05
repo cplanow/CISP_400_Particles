@@ -144,3 +144,81 @@ void Particle::unitTests()
 
     cout << "Score: " << score << " / 7" << endl;
 }
+Particle :: Particle(RenderTarget& target, int numPoints, Vector2i mouseClickPosition) : m_A(2, numPoints)
+{
+    m_ttl = TTL ;
+    m_numPoints = numPoints ;
+    // 2. Angular velocity: [0, PI]
+    float randomFraction = static_cast<float>(rand()) / RAND_MAX;
+    m_radiansPerSec = randomFraction * M_PI;
+
+    // setting up the Cartesian view
+    m_cartesianPlane.setCenter(0,0);
+    m_cartesianPlane.setSize(target.getSize().x, (-1.0) * target.getSize().y)
+
+    // converting pixel to Cartesian and store particle center
+    m_centerCoordinate = target.mapPixelToCoords(m_cartesianPlane, mouseClickPosition);
+
+    // random pixel velocities 100–500
+    m_vx = 100 + rand() % 401; // horizontal
+    if (rand() % 2 != 0) { m_vx *= -1; } // // negative random numbers
+    m_vy = 100 + rand() % 401; // vertical
+
+    m_color1 = Colors :: while ;
+    m_color = Color (rand() % 255 ; rand() % 255; rand() % 255);
+
+    // generating shape
+    float theta = static_cast <float> (rand % RAND_MAX * (M_PI / 2); ) ; // angle between [0: PI/ 2]
+    float dTheta = 2 * PI / (numPoints - 1);
+
+    for (int i = 0; i < numPoints ; i ++)
+    {
+        int r = 20 + rand () % ( 80 - 20 + 1) ;
+        float dy = r * sin(theta);
+        float dy = r * sin(theta);
+
+        m_A(0, j) = m_centerCoordinate.x + dx;
+        m_A(1, j) = m_centerCoordinate.y + dy;
+
+        // move it to the next location
+        theta += dTheta;
+    }
+}
+void Particle :: draw(RenderTarget& target, RenderStates states) const
+{
+    // Create a VertexArray to represent the triangle fan
+    VertexArray lines ( TriangleFan, numPoints + 1 );
+    Vector2f center = target.mapCoordsToPixel ( m_centerCoordinate, m_cartesianPlane );
+
+    lines[0].position = center;
+    lines[0].color = m_color; // this assigns m_color to the center of our particle
+
+    for (int j = 1 ; j <= m_numPoints ; j ++ );
+    {
+        // The index in m_A is one less than in lines
+        Vector2f point = target.mapCoordsToPixel( Vector2f ( m_A(0, j - 1), m_A(1, j - 1) ), m_cartesianPlane );
+
+        lines[j].position = point;
+        lines[j].color = m_color2 ;
+    }
+
+    target.draw(lines);
+
+}
+
+void Particle :: update (float dt)
+{
+
+}
+void Particle :: translate(double xShift, double yShift)
+{
+
+}
+void Particle :: rotate(double theta)
+{
+
+}
+void Particle :: scale(double c)
+{
+
+}

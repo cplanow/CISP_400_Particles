@@ -1,5 +1,7 @@
 #include "Engine.h"
 #include "Particle.h"
+#include <cstdlib>
+#include <ctime> // for random number
 
 Engine::Engine()
 {

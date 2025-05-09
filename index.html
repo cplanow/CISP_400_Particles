@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Particle System Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+        canvas {
+            display: block;
+            border: 1px solid #444;
+            margin: 20px 0;
+        }
+        .instructions {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .debug-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 5px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+<div class="instructions">Click anywhere to create particles</div>
+<canvas id="particleCanvas"></canvas>
+<div class="debug-info" id="debug"></div>
+
+<script>
+    // Constants similar to the C++ code
+    const M_PI = Math.PI;
+    const G = 1000;       // Gravity
+    const TTL = 5.0;      // Time To Live
+    const SCALE = 0.999;  // Scale factor
+
+    // Matrix class implementation
+    class Matrix {
+        constructor(rows, cols) {
+            this.rows = rows;
+            this.cols = cols;
+            this.data = Array(rows).fill().map(() => Array(cols).fill(0));
+        }
+
+        get(i, j) {
+            return this.data[i][j];
+        }
+
+        set(i, j, value) {
+            this.data[i][j] = value;
+        }
+
+        getRows() {
+            return this.rows;
+        }
+
+        getCols() {
+            return this.cols;
+        }
+    }
+
+    // Matrix operations
+    function matrixAdd(a, b) {
+        if (a.getRows() !== b.getRows() || a.getCols() !== b.getCols()) {
+            throw new Error("Matrix dimensions don't match for addition");
+        }
+
+        const result = new Matrix(a.getRows(), a.getCols());
+        for (let i = 0; i < a.getRows(); i++) {
+            for (let j = 0; j < a.getCols(); j++) {
+                result.set(i, j, a.get(i, j) + b.get(i, j));
+            }
+        }
+        return result;
+    }
+
+    function matrixMultiply(a, b) {
+        if (a.getCols() !== b.getRows()) {
+            throw new Error("Matrix dimensions don't match for multiplication");
+        }
+
+        const result = new Matrix(a.getRows(), b.getCols());
+        for (let i = 0; i < a.getRows(); i++) {
+            for (let j = 0; j < b.getCols(); j++) {
+                let sum = 0;
+                for (let k = 0; k < a.getCols(); k++) {
+                    sum += a.get(i, k) * b.get(k, j);
+                }
+                result.set(i, j, sum);
+            }
+        }
+        return result;
+    }
+
+    // Special matrices as in the C++ code
+    class RotationMatrix extends Matrix {
+        constructor(theta) {
+            super(2, 2);
+            this.set(0, 0, Math.cos(theta));
+            this.set(0, 1, -Math.sin(theta));
+            this.set(1, 0, Math.sin(theta));
+            this.set(1, 1, Math.cos(theta));
+        }
+    }
+
+    class ScalingMatrix extends Matrix {
+        constructor(scale) {
+            super(2, 2);
+            this.set(0, 0, scale);
+            this.set(0, 1, 0);
+            this.set(1, 0, 0);
+            this.set(1, 1, scale);
+        }
+    }
+
+    class TranslationMatrix extends Matrix {
+        constructor(xShift, yShift, nCols) {
+            super(2, nCols);
+            for (let j = 0; j < nCols; j++) {
+                this.set(0, j, xShift);
+                this.set(1, j, yShift);
+            }
+        }
+    }
+
+    // Particle class
+    class Particle {
+        constructor(canvas, numPoints, mousePos) {
+            this.ttl = TTL;
+            this.numPoints = numPoints;
+            this.radiansPerSec = Math.random() * M_PI;
+            this.centerCoordinate = { x: mousePos.x, y: mousePos.y };
+
+            // Initialize velocity with random values - initial upward movement
+            this.vx = (Math.random() * 400) + 100;
+            // Initially move upward (negative Y in canvas) with random velocity
+            this.vy = -((Math.random() * 400) + 100);
+            if (Math.random() > 0.5) this.vx *= -1;
+
+            // Initialize colors
+            this.color1 = "white";
+            this.color2 = this.randomColor();
+
+            // Initialize the matrix
+            this.A = new Matrix(2, numPoints);
+
+            // Generate points in a more explosive pattern
+            const theta = Math.random() * (M_PI / 2);
+            const dTheta = 2 * M_PI / (numPoints - 1);
+
+            // Initial size is smaller - will expand with first updates
+            const initialScale = 0.7;
+
+            for (let j = 0; j < numPoints; j++) {
+                const r = (20 + Math.random() * 60) * initialScale;
+                const dx = r * Math.cos(theta + j * dTheta);
+                const dy = r * Math.sin(theta + j * dTheta);
+
+                this.A.set(0, j, this.centerCoordinate.x + dx);
+                this.A.set(1, j, this.centerCoordinate.y + dy);
+            }
+        }
+
+        randomColor() {
+            const r = Math.floor(Math.random() * 256);
+            const g = Math.floor(Math.random() * 256);
+            const b = Math.floor(Math.random() * 256);
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        draw(ctx) {
+            ctx.beginPath();
+            ctx.moveTo(this.centerCoordinate.x, this.centerCoordinate.y);
+            ctx.fillStyle = this.color1;
+            ctx.arc(this.centerCoordinate.x, this.centerCoordinate.y, 2, 0, 2 * Math.PI);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(this.centerCoordinate.x, this.centerCoordinate.y);
+            ctx.fillStyle = this.color2;
+
+            for (let j = 0; j < this.numPoints; j++) {
+                ctx.lineTo(this.A.get(0, j), this.A.get(1, j));
+            }
+
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        update(dt) {
+            this.ttl -= dt;
+            this.rotate(dt * this.radiansPerSec);
+
+            // Calculate current lifetime percentage
+            const lifePercentage = this.ttl / TTL;
+
+            // Initial expansion, then gradual shrinking
+            let scaleValue = SCALE;
+            if (lifePercentage > 0.8) {
+                // In the first 20% of life, expand
+                scaleValue = 1.01;
+            } else {
+                // Then gradually shrink
+                scaleValue = SCALE;
+            }
+
+            this.scale(scaleValue);
+
+            const dx = this.vx * dt;
+            this.vy += G * dt;
+            const dy = this.vy * dt;
+
+            this.translate(dx, dy);
+        }
+
+        translate(xShift, yShift) {
+            const T = new TranslationMatrix(xShift, yShift, this.A.getCols());
+            this.A = matrixAdd(T, this.A);
+            this.centerCoordinate.x += xShift;
+            this.centerCoordinate.y += yShift;
+        }
+
+        rotate(theta) {
+            const temp = { ...this.centerCoordinate };
+            this.translate(-this.centerCoordinate.x, -this.centerCoordinate.y);
+
+            const R = new RotationMatrix(theta);
+            this.A = matrixMultiply(R, this.A);
+
+            this.translate(temp.x, temp.y);
+        }
+
+        scale(c) {
+            const temp = { ...this.centerCoordinate };
+            this.translate(-this.centerCoordinate.x, -this.centerCoordinate.y);
+
+            const S = new ScalingMatrix(c);
+            this.A = matrixMultiply(S, this.A);
+
+            this.translate(temp.x, temp.y);
+        }
+
+        getTTL() {
+            return this.ttl;
+        }
+    }
+
+    // Engine class
+    class Engine {
+        constructor(canvas) {
+            this.canvas = canvas;
+            this.ctx = canvas.getContext('2d');
+            this.particles = [];
+            this.lastTime = 0;
+            this.resize();
+            this.setupEventListeners();
+        }
+
+        resize() {
+            this.canvas.width = window.innerWidth * 0.8;
+            this.canvas.height = window.innerHeight * 0.8;
+        }
+
+        setupEventListeners() {
+            this.canvas.addEventListener('click', (e) => {
+                const rect = this.canvas.getBoundingClientRect();
+                const mousePos = {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+
+                for (let i = 0; i < 5; i++) {
+                    // More variation in number of points
+                    const numPoints = 25 + Math.floor(Math.random() * 75);
+                    const newParticle = new Particle(this.canvas, numPoints, mousePos);
+                    this.particles.push(newParticle);
+                }
+
+                // Play sound effect for the burst
+                this.playBurstSound();
+            });
+
+            window.addEventListener('resize', () => this.resize());
+        }
+
+        playBurstSound() {
+            // Simple audio feedback (optional)
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(220, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.5);
+            } catch (e) {
+                // Audio context not supported or other error
+                console.log("Audio not supported");
+            }
+        }
+
+        run(timestamp) {
+            // Calculate delta time
+            if (!this.lastTime) this.lastTime = timestamp;
+            const dt = (timestamp - this.lastTime) / 1000; // convert to seconds
+            this.lastTime = timestamp;
+
+            // Update
+            this.update(dt);
+
+            // Draw
+            this.draw();
+
+            // Update debug info
+            document.getElementById('debug').textContent = `Particles: ${this.particles.length}`;
+
+            // Request next frame
+            requestAnimationFrame(this.run.bind(this));
+        }
+
+        update(dt) {
+            // Filter out expired particles
+            this.particles = this.particles.filter(p => {
+                if (p.getTTL() > 0) {
+                    p.update(dt);
+                    return true;
+                }
+                return false;
+            });
+        }
+
+        draw() {
+            // Clear canvas
+            this.ctx.fillStyle = 'black';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+            // Draw all particles
+            for (const particle of this.particles) {
+                particle.draw(this.ctx);
+            }
+        }
+    }
+
+    // Initialize engine when page loads
+    window.onload = function() {
+        const canvas = document.getElementById('particleCanvas');
+        const engine = new Engine(canvas);
+
+        // Start the game loop
+        requestAnimationFrame(engine.run.bind(engine));
+    };
+</script>
+</body>
+</html>

@@ -12,9 +12,15 @@ LDFLAGS := -L$(SFML_PATH)/lib -lsfml-graphics -lsfml-window -lsfml-system -lsfml
 # Output target binary name
 TARGET := game.out
 
+# Sound and music assets
+ASSET := click.wav background.ogg
+
+
+
 # Build executable target
 $(TARGET): $(OBJ_FILES)
 	$(CXX) -o $@ $^ $(LDFLAGS)
+	cp $(ASSET) .  # Copy the sound file if not already in place
 
 # Build individual object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
@@ -24,6 +30,6 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 run: $(TARGET)
 	./$(TARGET)
 
-# Clean files
+# Clean files (DOES NOT delete original click.wav)
 clean:
 	rm -f $(TARGET) $(OBJ_FILES)

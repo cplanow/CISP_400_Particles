@@ -5,8 +5,28 @@
 
 Engine::Engine()
 {
-    m_Window.create(VideoMode(VideoMode::getDesktopMode().width / 2, VideoMode::getDesktopMode().height / 2), "Particles By Chris and Ali");
     //m_Window.create(desktop, "Particles By Chris and Ali");
+    m_Window.create(VideoMode(VideoMode::getDesktopMode().width , VideoMode::getDesktopMode().height ), "Particles By Chris and Ali");
+
+    // load the click sound
+    if (!m_bufferClick.loadFromFile("click.wav"))
+    {
+        cout << "Error loading click.wav\n";
+    }
+
+    // load the background music
+    if (!m_backgroundMusic.openFromFile("background.ogg"))
+    {
+        cout << "Error loading background.ogg\n";
+    }
+    else
+    {
+        m_backgroundMusic.setLoop(true);  // play continuously
+        m_backgroundMusic.play();         // start music
+    }
+
+    m_clickSound.setBuffer(m_bufferClick);
+
 }
 
 void Engine::run()
@@ -14,7 +34,7 @@ void Engine::run()
     Clock clock;
 
     cout << "Starting Particle unit tests..." << endl;
-    Particle p(m_Window, 4, { (int)m_Window.getSize().x / 2, (int)m_Window.getSize().y / 2 });
+    Particle p(m_Window, 4, { int (m_Window.getSize().x / 2), int (m_Window.getSize().y / 2) });
     p.unitTests();
     cout << "Unit tests complete. Starting engine..." << endl;
 
@@ -42,6 +62,11 @@ void Engine::input()
         if (event.type == Event::MouseButtonPressed && event.mouseButton.button == Mouse::Left)
         {
             Vector2i mousePos = Mouse::getPosition(m_Window);
+
+
+            // Play click sound
+            m_clickSound.play();
+
 
             for (int i = 0; i < 5; i++)
             {

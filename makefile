@@ -15,8 +15,6 @@ TARGET := game.out
 # Sound and music assets
 ASSET := click.wav background.ogg
 
-
-
 # Build executable target
 $(TARGET): $(OBJ_FILES)
 	$(CXX) -o $@ $^ $(LDFLAGS)

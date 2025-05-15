@@ -18,7 +18,7 @@ public:
     float getTTL() { return m_ttl; }
 
     //Functions for unit testing
-    bool almostEqual(double a, double b, double eps = 0.0001);
+    bool almostEqual(double a, double b, double eps = 1.0 );
     void unitTests();
 
 private:

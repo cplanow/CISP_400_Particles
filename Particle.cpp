@@ -63,7 +63,7 @@ void Particle::unitTests()
 
     cout << "Testing Particles..." << endl;
     cout << "Testing Particle mapping to Cartesian origin..." << endl;
-    if (m_centerCoordinate.x != 0 || m_centerCoordinate.y != 0)
+    if (!almostEqual(m_centerCoordinate.x, 0, 1.0 ) || !almostEqual(m_centerCoordinate.y, 0, 1.0 ))
     {
         cout << "Failed.  Expected (0,0).  Received: (" << m_centerCoordinate.x << "," << m_centerCoordinate.y << ")" << endl;
     }

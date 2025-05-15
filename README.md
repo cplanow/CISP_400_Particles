@@ -1,4 +1,4 @@
-# CISP_400_Particles
+# CISP_400_Particles By Ali Chenari and Chris Planow
 
 A particle system simulation implemented in C++ using SFML graphics library. The project demonstrates matrix transformations and particle physics in a visually engaging way.
 
